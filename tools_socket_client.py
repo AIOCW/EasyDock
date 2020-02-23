@@ -180,6 +180,7 @@ class SocketQThread(QThread):
             if file_size < 512000:
                 try:
                     self.tcp_client.send(package_data_2_security(data2byte(1100)))
+
                     confirm_data = byte2data(unpackage_data_2_security(self.tcp_client.recv(4)))
                     if confirm_data == 91100:
                         head_info_buffer = head_info.encode('utf-8')
