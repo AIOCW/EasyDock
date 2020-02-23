@@ -1,5 +1,6 @@
 import pyperclip
 
+from windows_api import get_handle
 import fix_qt_import_error
 import sys
 from PyQt5.QtGui import QPixmap, QIcon
@@ -191,7 +192,7 @@ class DockMain(object):
         print(app_info.name, app_info.path)
 
         self.app_list_widget.currentItem().setIcon(QIcon(app_info.icon_path))
-        handle = win32process.CreateProcess(app_info.path, '', None, None, 0, win32process.CREATE_NO_WINDOW, None, None, win32process.STARTUPINFO())
+        handle = get_handle(app_info)
         self.app_run_info_dict[name] = handle
 
     def set_self_message(self, message):
