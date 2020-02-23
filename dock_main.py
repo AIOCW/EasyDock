@@ -1,3 +1,5 @@
+import pyperclip
+
 import fix_qt_import_error
 import sys
 from PyQt5.QtGui import QPixmap, QIcon
@@ -27,6 +29,10 @@ from data_manager.common_tools import init_table_data_for_setting
 
 from tools_socket_client import SocketQThread
 
+from net_tools import str_2_json
+
+from message_tip_window import MessageTipWindow
+from device_select_window import DeviceSelectWindow
 TAG = "dock_main:    "
 
 
@@ -48,11 +54,15 @@ class DockMain(object):
         self.init_thead()
 
         self.init_data()
+
+        self.init_some_function()
+
         self.init_ui()
 
     def init_config(self):
         # init_table_data_for_setting()
         self.app_setting = select_setting()
+
 
     def init_thead(self):
         self.socket_thread = SocketQThread(self.app_setting)
@@ -60,8 +70,20 @@ class DockMain(object):
         self.socket_thread.start()
 
     def init_data(self):
+        self.need_show_send = True
+
         for app_info in select():
             self.app_info_dict[app_info.name] = app_info
+
+    def init_some_function(self):
+        self.clipboard = QApplication.clipboard()  # 1
+        self.clipboard.dataChanged.connect(lambda: self.clipboard_data_changed())
+        self.message_tip_window = MessageTipWindow()  # 自定义窗口
+        self.message_tip_window.before_close_signal.connect(self.show_message)
+        self.device_select_window = DeviceSelectWindow()
+        self.device_select_window.before_close_signal.connect(self.send_message)
+        # self.clipboard.dataChanged.connect(lambda: print('Data Changed'))
+
 
     def init_ui(self):
         desktop = QApplication.desktop()
@@ -108,15 +130,6 @@ class DockMain(object):
         self.drag_label = FatherQLabel("Input", self, self.centralWidget)
         self.drag_label.setGeometry(QRect(5 + message_window_width + 5, 2, input_window_width, input_window_height))
         self.drag_label.setObjectName("drag_label")
-
-        # 显示选择目标设备按钮
-        self.device_list_widget = QListWidget(self.centralWidget)
-        self.device_list_widget.setGeometry(0, 0, 0, 0)
-        self.device_list_widget.setFlow(QListWidget.LeftToRight)
-        self.device_list_widget.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.device_list_widget.setFrameShape(QListWidget.NoFrame)
-        self.device_list_widget.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.device_list_widget.clicked.connect(lambda: self.device_clicked_list_widget_fun())
 
         if len(self.app_info_dict) == 0:
             self.main_window.resize(
@@ -183,38 +196,47 @@ class DockMain(object):
 
     def set_self_message(self, message):
         print("{}{}".format(TAG, message))
-        message =  message.split("+0~^D")
+        message = message.split("+0~^D")
         order = message[0]
         data = message[1]
-        if order == '1':
-            data = data.split(":")
-            for one_device in data:
-                print(one_device)
-            #     self.message_label.setText(one_device)
-            #     self.socket_thread.send_file(one_device)
-
-            self.message_label.setGeometry(0, 0, 0, 0)
-            self.device_list_widget.setGeometry(5, 2, device_select_width, device_select_height)
-
-            for one_device in data:
-                print(one_device)
-                item = QListWidgetItem()
-                item.setSizeHint(QSize(device_select_item_width, device_select_item_height))
-                item.setText(one_device)
-                item.setWhatsThis(one_device)
-                self.device_list_widget.addItem(item)
+        if order == 'f1001':
+            json_data_list = str_2_json(data)
+            self.device_select_window.show()
+            self.device_select_window.start(json_data_list)
+        elif order == 't1001':
+            json_data_list = str_2_json(data)
+            self.device_select_window.show()
+            self.device_select_window.start(json_data_list, "t")
+        elif order == '91011':
+            self.need_show_send = False
+            self.clipboard.setText(data)
+            # pyperclip.paste()
+            self.message_tip_window.show()
+            self.message_tip_window.start(data)
         elif order == '4':
             self.message_label.setText(data)
 
-    def device_clicked_list_widget_fun(self):
-        print("device_select_clicked")
-        select_device = self.device_list_widget.currentItem().whatsThis()
-        print('device_list_widget 已选择：{}'.format(select_device))
-        self.socket_thread.send_file(select_device)
-        self.device_list_widget.setGeometry(0, 0, 0, 0)
-        self.device_list_widget.clear()
-        self.message_label.setGeometry(QRect(5, 2, message_window_width, message_window_height))
+    def clipboard_data_changed(self):
+        print("clipboard data change")
+        # self.clipboard.setText()
+        if self.need_show_send:
+            self.socket_thread.get_other_client_data("", "t")
+        else:
+            self.need_show_send = True
 
+
+    def send_message(self, value, send_type):
+        print(value)
+        if value != '-1':
+            if send_type == 't':
+                text_message = self.clipboard.text()
+                if text_message != '':
+                    self.socket_thread.send_text_message_api(text_message, value)
+        else:
+            return
+
+    def show_message(self, value):
+        print(value)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

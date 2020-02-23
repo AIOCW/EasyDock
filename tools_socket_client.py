@@ -6,7 +6,7 @@
 # @Software: PyCharm
 
 import sys
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QMutex
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLabel, QHBoxLayout, QVBoxLayout
 
 from socket import *
@@ -15,11 +15,13 @@ import json
 import struct
 import time
 
+from net_tools import unpackage_data_2_security, package_data_2_security ,data2byte, byte2data
 
 TAG = "tools_sockt_client:     "
 buffsize = 1024
 
 
+qmut_tool = QMutex() # 创建线程锁
 class SocketQThread(QThread):
     my_signal = pyqtSignal(str)
     is_connection = False
@@ -35,8 +37,13 @@ class SocketQThread(QThread):
         self.send_code = -1
         self.recv_code = -1
 
+        self.return_type_flag = ''
+
         self.send_file_path = ''
         self.send_aim = ''
+
+        self.text_message_aim_device = ''
+        self.text_message = ''
 
     def run(self):
         self.start_net_fun()
@@ -45,10 +52,13 @@ class SocketQThread(QThread):
                 print("{}可以连接到服务器".format(TAG))
                 # 心跳保持工具
                 if self.is_send_heartbeat:
+                    qmut_tool.lock()
                     print('heartbeat')
-                    self.my_signal.emit("2" + "+0~^D" + self.heartbeat())
-                    self.sleep(1)
+                    self.heartbeat()
+                    # self.my_signal.emit("2" + "+0~^D" + self.heartbeat())
+                    self.sleep(3)
                     print("当前recv_code{}".format(self.recv_code))
+                    qmut_tool.unlock()
                 # 发送文件
                 elif self.send_code == 1:
                     print(self.send_file_path + "    in tools")
@@ -68,23 +78,35 @@ class SocketQThread(QThread):
                     self.send_file_path = ''
                     self.send_aim = ''
                     self.is_send_heartbeat = True
-                # 发送文字
-                elif self.send_code == 3:
-                    pass
+                # 发送文本消息
+                elif self.send_code == 1011:
+                    self.send_text_message()
+
                     # 发送文字
                     # send_file("")
                 # 获取已连接服务端的客户端数量
-                elif self.send_code == 11:
-                    self.tcp_client.send(struct.pack('i', 11))
-                    message_len = struct.unpack('i', self.tcp_client.recv(4))[0]
-                    message = self.tcp_client.recv(message_len)
-                    message = "1" + "+0~^D" + message.decode('utf-8')
-                    self.my_signal.emit(message)
+                elif self.send_code == 1001:
+                    qmut_tool.lock()
+                    self.tcp_client.send(package_data_2_security(data2byte(1001)))
+                    confirm_code_buffer = self.tcp_client.recv(4)
+                    confirm_code = byte2data(unpackage_data_2_security(confirm_code_buffer))
+                    if confirm_code == 1001:
+                        message_len_buffer = self.tcp_client.recv(4)
+                        message_len = byte2data(unpackage_data_2_security(message_len_buffer))
+                        message_buffer = self.tcp_client.recv(message_len)
+                        message = unpackage_data_2_security(message_buffer)
+                        self.tcp_client.send(package_data_2_security(data2byte(1001)))
+                        message = self.return_type_flag + "1001" + "+0~^D" + message.decode('utf-8')
+                        self.my_signal.emit(message)
 
-                    self.send_code = -1
-                    self.is_send_heartbeat = True
-                    # 发送文字
-                    # send_file("")
+                        self.send_code = -1
+                        self.is_send_heartbeat = True
+                        # 发送文字
+                        # send_file("")
+                    else:
+                        print("获取数据失败")
+                    qmut_tool.unlock()
+                    print("end 1001================")
 
                 # 接收文件
                 if self.recv_code == 1:
@@ -92,18 +114,58 @@ class SocketQThread(QThread):
                     self.recv_code = -1
                     self.recv_file()
                     self.is_send_heartbeat = True
-                elif self.recv_code == 4:
-                    tip_message_len = struct.unpack('i', self.tcp_client.recv(4))[0]
-                    tip_message = self.tcp_client.recv(tip_message_len)
-                    tip_message = "4" + "+0~^D" + tip_message.decode('utf-8')
-                    self.my_signal.emit(tip_message)
-
-                    self.recv_code = -1
-                    self.is_send_heartbeat = True
+                elif self.recv_code == 91011:
+                    self.rece_text_message()
             else:
                 print("网络错误")
                 self.start_net_fun()
                 time.sleep(10)
+
+    def send_text_message_api(self, text_message, aim_device):
+        self.text_message = text_message
+        self.text_message_aim_device = aim_device
+        self.send_code = 1011
+        self.is_send_heartbeat = False
+
+    def send_text_message(self):
+        try:
+            self.tcp_client.send(package_data_2_security(data2byte(1011)))
+            print('向服务端发送文本消息')
+            json_message = {
+                'client_name': self.text_message_aim_device,
+                'security_md5_text': self.text_message
+            }
+            json_message = json.dumps(json_message)
+            json_message_buffer = json_message.encode('utf-8')
+            json_message_buffer = package_data_2_security(json_message_buffer)
+            json_message_len_buffer = data2byte(len(json_message_buffer))
+            json_message_len_buffer = package_data_2_security(json_message_len_buffer)
+            self.tcp_client.send(json_message_len_buffer)  # 这里是4个字节
+            self.tcp_client.send(json_message_buffer)  # 发送报头的内容
+            success_code_buffer = self.tcp_client.recv(4)
+            success_code = byte2data(unpackage_data_2_security(success_code_buffer))
+            if success_code == 1011:
+                self.is_send_heartbeat = True
+                self.send_code = -1
+        except:
+            print("Error{}, is_connection={}".format("网络错误，重置网络标识，启动服务器链接监测", self.is_connection))
+
+    def rece_text_message(self):
+        confirm_code_buffer = self.tcp_client.recv(4)
+        confirm_code = byte2data(unpackage_data_2_security(confirm_code_buffer))
+        if confirm_code == 1011:
+            json_data_len_buffer = self.tcp_client.recv(4)
+            json_data_len = byte2data(unpackage_data_2_security(json_data_len_buffer))
+            json_data_buffer = self.tcp_client.recv(json_data_len)
+            json_data = unpackage_data_2_security(json_data_buffer)
+            json_data = json_data.decode('utf-8')
+            json_data = json.loads(json_data)
+
+            text_message = "91011" + "+0~^D" + json_data['security_md5_text']
+            self.my_signal.emit(text_message)
+
+            self.recv_code = -1
+            self.is_send_heartbeat = True
 
     def opera_file(self, filename):
         '''对报头进行打包'''
@@ -120,8 +182,9 @@ class SocketQThread(QThread):
         print(len(head_info))
         return head_info_len, head_info
 
-    def get_other_client_data(self, file_path):
-        self.send_code = 11
+    def get_other_client_data(self, file_path, type_flag):
+        self.return_type_flag = type_flag
+        self.send_code = 1001
         self.is_send_heartbeat = False
         self.send_file_path = file_path
 
@@ -170,26 +233,32 @@ class SocketQThread(QThread):
 
     def heartbeat(self):
         print("进入心跳包发送阶段")
-        order = -1
+        success_code = 0
         try:
-            self.tcp_client.send(struct.pack('i', 2))
-            order = struct.unpack('i', self.tcp_client.recv(4))[0]
-            print("心跳包接收的是{}".format(order))
+            self.tcp_client.send(package_data_2_security(data2byte(1010)))
+            success_code_buffer = self.tcp_client.recv(4)
+            success_code = byte2data(unpackage_data_2_security(success_code_buffer))
+            if success_code == 1010:
+                print("心跳包接收的是{}".format(success_code))
         except ValueError:
             print("值错误{}，进行服务重连或服务切换".format(ValueError))
             self.is_connection = False
         except:
             print("{}".format("心跳保持出现问题，进行服务重连或切换"))
             self.is_connection = False
-        if order == 9:
+        if success_code == 1010:
             status = '在线9'
-
-        elif order == 1:
+        elif success_code == 91011:
+            status = '有文本信息'
+            self.recv_code = 91011
+            self.is_send_heartbeat = False
+            return status
+        elif success_code == 1:
             status = '文件接收中。。。'
             self.recv_code = 1
             self.is_send_heartbeat = False
             return status
-        elif order == 4:
+        elif success_code == 4:
             status = '接收其它设备信息'
             self.is_send_heartbeat = False
             self.recv_code = 4
@@ -209,12 +278,18 @@ class SocketQThread(QThread):
                 'client_name': self.device_name
             }
             json_message = json.dumps(json_message)
-            json_message_len = struct.pack('i', len(json_message))
-            print(json_message_len)
-            self.tcp_client.send(struct.pack('i', 0))
-            self.tcp_client.send(json_message_len)  # 这里是4个字节
-            self.tcp_client.send(json_message.encode('utf-8'))  # 发送报头的内容
-            self.is_connection = True
+            json_message_buffer = json_message.encode('utf-8')
+            json_message_buffer = package_data_2_security(json_message_buffer)
+
+            self.tcp_client.send(package_data_2_security(data2byte(1000)))
+            json_message_len_buffer = data2byte(len(json_message_buffer))
+            json_message_len_buffer = package_data_2_security(json_message_len_buffer)
+            self.tcp_client.send(json_message_len_buffer)  # 这里是4个字节
+            self.tcp_client.send(json_message_buffer)  # 发送报头的内容
+            success_code_buffer = self.tcp_client.recv(4)
+            success_code = byte2data(unpackage_data_2_security(success_code_buffer))
+            if success_code == 1000:
+                self.is_connection = True
         except:
             self.is_connection = False
             print("Error{}, is_connection={}".format("网络错误，重置网络标识，启动服务器链接监测", self.is_connection))

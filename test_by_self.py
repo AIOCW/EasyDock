@@ -1,41 +1,67 @@
+from PyQt5.Qt import (QApplication, QWidget, QPushButton,
+                      QThread,QMutex,pyqtSignal)
 import sys
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QPushButton, \
-    QGridLayout, QVBoxLayout, QHBoxLayout
+import time
 
-
-class Demo(QWidget):
-
+qmut_1 = QMutex() # 创建线程锁
+qmut_2 = QMutex()
+# 继承QThread
+class Thread_1(QThread):  # 线程1
     def __init__(self):
-        super(Demo, self).__init__()
+        super().__init__()
 
-        self.user_label = QLabel('Username:', self)
-        self.pwd_label = QLabel('Password:', self)
-        self.user_line = QLineEdit(self)
-        self.user_line.setFixedSize(50, 100)
-        self.pwd_line = QLineEdit(self)
-        self.pwd_line.setGeometry(0, 0, 50, 100)
-        self.login_button = QPushButton('Log in', self)
-        self.signin_button = QPushButton('Sign in', self)
-
-        self.grid_layout = QGridLayout()  # 1
-        self.h_layout = QHBoxLayout()
-        self.v_layout = QVBoxLayout()
-
-        self.grid_layout.addWidget(self.user_label, 0, 0, 1, 1)  # 2
-        self.grid_layout.addWidget(self.user_line, 0, 1, 1, 1)
-        self.grid_layout.addWidget(self.pwd_label, 1, 0, 1, 1)
-        self.grid_layout.addWidget(self.pwd_line, 1, 1, 1, 1)
-        self.h_layout.addWidget(self.login_button)
-        self.h_layout.addWidget(self.signin_button)
-        self.v_layout.addLayout(self.grid_layout)  # 3
-        self.v_layout.addLayout(self.h_layout)  # 4
-
-        self.setLayout(self.v_layout)
-        self.setFixedSize(400, 400)
+    def run(self):
+        qmut_1.lock() # 加锁
+        values = [1, 2, 3, 4, 5]
+        for i in values:
+            print(i)
+            time.sleep(0.5)  # 休眠
+        qmut_1.unlock() # 解锁
 
 
-if __name__ == '__main__':
+class Thread_2(QThread):  # 线程2
+    _signal =pyqtSignal()
+    def __init__(self):
+        super().__init__()
+
+    def run(self):
+        # qmut_2.lock()  # 加锁
+        values = ["a", "b", "c", "d", "e"]
+        for i in values:
+            print(i)
+            time.sleep(0.5)
+        # qmut_2.unlock()  # 解锁
+        self._signal.emit()
+
+
+class MyWin(QWidget):
+    def __init__(self):
+        super().__init__()
+        # 按钮初始化
+        self.btn_1 = QPushButton('按钮1', self)
+        self.btn_1.move(120, 80)
+        self.btn_1.clicked.connect(self.click_1)  # 绑定槽函数
+
+        self.btn_2 = QPushButton('按钮2', self)
+        self.btn_2.move(120, 120)
+        self.btn_2.clicked.connect(self.click_2)  # 绑定槽函数
+
+    def click_1(self):
+        self.thread_1 = Thread_1()  # 创建线程
+        self.thread_1.start()  # 开始线程
+
+    def click_2(self):
+        self.btn_2.setEnabled(False)
+        self.thread_2 = Thread_2()
+        self.thread_2._signal.connect(self.set_btn)
+        self.thread_2.start()
+
+    def set_btn(self):
+        self.btn_2.setEnabled(True)
+
+
+if __name__ == "__main__":
     app = QApplication(sys.argv)
-    demo = Demo()
-    demo.show()
+    myshow = MyWin()
+    myshow.show()
     sys.exit(app.exec_())

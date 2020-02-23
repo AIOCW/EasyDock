@@ -1,11 +1,7 @@
 from PyQt5.QtWidgets import *
-from PyQt5.QtCore import Qt, pyqtSignal, QTimer
-from PyQt5 import QtCore
-from PyQt5.Qt import QIcon
-import sys
+from PyQt5.QtCore import Qt
 
-from setting import Setting
-from test_by_self import MyWindow2
+from message_tip_window import MessageTipWindow
 
 class MyWindow(QWidget):
 
@@ -13,15 +9,8 @@ class MyWindow(QWidget):
 
         super().__init__()
 
+        self.setWindowTitle('PyQt5 弹出窗口（框）大全')
         self.resize(400, 300)
-        self.setWindowTitle("Ass")
-        self.setWindowIcon(QIcon("images/icon.png"))
-        # https://www.easyicon.net/1188455-Fingerprint_icon.html
-        self.setWindowFlags(QtCore.Qt.WindowTitleHint | QtCore.Qt.WindowCloseButtonHint)
-        # dialog.setWindowFlags(QtCore.Qt.Widget)  # 取消置顶
-        # self.setWindowOpacity(0.8)  # 设置窗口透明度
-        # self.setAttribute(QtCore.Qt.WA_TranslucentBackground)  # 设置窗口背景透明
-        # self.setWindowFlag(QtCore.Qt.FramelessWindowHint)  # 隐藏边框
 
         # 全局布局（注意参数 self）
         wl = QVBoxLayout(self)
@@ -94,14 +83,13 @@ class MyWindow(QWidget):
         wl.addLayout(h3)
         wl.addLayout(h4)
 
-        self.window2 = Setting()  # 自定义窗口
+        self.window2 = MessageTipWindow()  # 自定义窗口
         self.window2.before_close_signal.connect(self.echo)  # 接收自定义窗口关闭时发送过来的信号，交给 echo 函数显示
 
     def echo(self, value):
         '''显示对话框返回值'''
-        # QMessageBox.information(self, "返回值", "得到：{}\n\ntype: {}".format(value, type(value)),
-                                # QMessageBox.Yes | QMessageBox.No)
-        print(value)
+        QMessageBox.information(self, "返回值", "得到：{}\n\ntype: {}".format(value, type(value)),
+                                QMessageBox.Yes | QMessageBox.No)
         # pass
 
     # =====================================================================
@@ -125,7 +113,7 @@ class MyWindow(QWidget):
         self.echo(value)
 
     def do_btn15(self, event):  # 输入：选项
-        # 1为默认选中选项目，True/False  列表框是否可编辑。
+        # 1为默认选中选项目，True/False 列表框是否可编辑。
         items = ["Spring", "Summer", "Fall", "Winter"]
         value, ok = QInputDialog.getItem(self, "输入框标题", "这是提示信息\n\n请选择季节:", items, 1, True)
         self.echo(value)
@@ -211,13 +199,12 @@ class MyWindow(QWidget):
         self.echo(font)
 
     def do_btn43(self, event):  # 自定义
-
+        self.window2 = MessageTipWindow()  # 自定义窗口
+        self.window2.before_close_signal.connect(self.echo)  # 接收自定义窗口关闭时发送过来的信号，交给 echo 函数显示
         self.window2.show()
 
-
-
-
 if __name__ == "__main__":
+    import sys
 
     app = QApplication(sys.argv)
     win = MyWindow()

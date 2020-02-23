@@ -22,3 +22,14 @@ def unpackage_data_2_security(bytes_data):
     for i in range(0, l-1):
         new_data += bytes_data[i : i+1]
     return new_data
+
+def str_2_json(s):
+    s = s.split('[\'')[1]
+    s = s.split('\']')[0]
+    x = s.split('}\', \'')
+    for i in range(len(x) - 1):
+        x[i] = x[i] + "}"
+
+    for i in range(len(x)):
+        x[i].lstrip()
+    return x
