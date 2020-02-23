@@ -1,9 +1,10 @@
 from windows_api import get_handle
 import sys
-from PyQt5.QtGui import QPixmap, QIcon
+import traceback
+from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import Qt, QSize, QRect
 from PyQt5 import QtCore
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QListWidget, QListWidgetItem, QHBoxLayout, QGridLayout, QComboBox
+from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QListWidget
 
 from setting import Setting
 
@@ -12,15 +13,15 @@ from father_q_list_widget import FatherQListWidget
 from father_q_label import FatherQLabel
 from father_q_list_widget_item import FatherQListWidgetItem
 
-from dao.app_info_dao import insert, delete, select
+from dao.app_info_dao import select
 
-from data_manager.app_setting_location import init_setting, select_setting, update_setting
+from data_manager.app_setting_location import select_setting
 
 from default_config import *
 
 from tools_socket_client import SocketQThread
 
-from net_tools import str_2_json
+from tools.net_tools import str_2_json
 
 from message_tip_window import MessageTipWindow
 from device_select_window import DeviceSelectWindow
@@ -56,9 +57,12 @@ class DockMain(object):
 
 
     def init_thead(self):
-        self.socket_thread = SocketQThread(self.app_setting)
-        self.socket_thread.my_signal.connect(self.set_self_message)
-        self.socket_thread.start()
+        try:
+            self.socket_thread = SocketQThread(self.app_setting)
+            self.socket_thread.my_signal.connect(self.set_self_message)
+            self.socket_thread.start()
+        except:
+            print(traceback.format_exc())
 
     def init_data(self):
         self.need_show_send = True
@@ -193,7 +197,7 @@ class DockMain(object):
         if order == 'f1001':
             json_data_list = str_2_json(data)
             self.device_select_window.show()
-            self.device_select_window.start(json_data_list)
+            self.device_select_window.start(json_data_list, order)
         elif order == 't1001':
             json_data_list = str_2_json(data)
             self.device_select_window.show()
@@ -204,6 +208,10 @@ class DockMain(object):
             # pyperclip.paste()
             self.message_tip_window.show()
             self.message_tip_window.start(data)
+        elif order == '91100':
+            # pyperclip.paste()
+            self.message_tip_window.show()
+            self.message_tip_window.start(data)
         elif order == '4':
             self.message_label.setText(data)
 
@@ -211,7 +219,7 @@ class DockMain(object):
         print("clipboard data change")
         # self.clipboard.setText()
         if self.need_show_send:
-            self.socket_thread.get_other_client_data("", "t")
+            self.socket_thread.get_other_client_data_api("", "t")
         else:
             self.need_show_send = True
 
@@ -223,6 +231,8 @@ class DockMain(object):
                 text_message = self.clipboard.text()
                 if text_message != '':
                     self.socket_thread.send_text_message_api(text_message, value)
+            elif send_type == 'f1001':
+                self.socket_thread.send_file_api(value)
         else:
             return
 

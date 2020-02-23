@@ -77,7 +77,7 @@ class DeviceSelectWindow(QFrame):
 
         self.timer.timeout.connect(self.update)  # 每次计时结束，触发update
 
-    def start(self, device_list, send_type='all'):
+    def start(self, device_list, send_type):
         self.send_type = send_type
         self.sec = 1
         self.timer.start(1000)

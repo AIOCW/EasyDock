@@ -79,8 +79,7 @@ class FatherQLabel(QLabel):
             app_name = app_target.split('.exe')[0]
         else:
             app_name = app_target.split('.lnk')[0]
-        self.socket_thread.get_other_client_data(txt_path, "f")
-        # self.socket_thread.send_file(txt_path, '1000')
+        self.socket_thread.get_other_client_data_api(txt_path, "f")
 
     def mouseDoubleClickEvent(self, *args, **kwargs):
         if self.is_close:
