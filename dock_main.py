@@ -1,15 +1,9 @@
-import pyperclip
-
 from windows_api import get_handle
-import fix_qt_import_error
 import sys
 from PyQt5.QtGui import QPixmap, QIcon
 from PyQt5.QtCore import Qt, QSize, QRect
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QListWidget, QListWidgetItem, QHBoxLayout, QGridLayout, QComboBox
-
-import win32process
-import json
 
 from setting import Setting
 
@@ -18,15 +12,11 @@ from father_q_list_widget import FatherQListWidget
 from father_q_label import FatherQLabel
 from father_q_list_widget_item import FatherQListWidgetItem
 
-from entity.app_info import AppInfo
 from dao.app_info_dao import insert, delete, select
 
-from entity.app_setting import AppSetting
 from data_manager.app_setting_location import init_setting, select_setting, update_setting
 
 from default_config import *
-
-from data_manager.common_tools import init_table_data_for_setting
 
 from tools_socket_client import SocketQThread
 
