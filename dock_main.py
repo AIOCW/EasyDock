@@ -1,3 +1,7 @@
+import os
+import sys
+if hasattr(sys, 'frozen'):
+    os.environ['PATH'] = sys._MEIPASS + ";" + os.environ['PATH']
 from windows_api import get_handle
 import sys
 import traceback
