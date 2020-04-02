@@ -19,6 +19,7 @@ from tools.file_tools import get_file_inform, split_file, composite_file
 from tools.md5 import getmd5
 
 from mutil_file_send_thread import FileSendQThread
+from mutil_file_recv_thread import FileRecvQThread
 
 TAG = "tools_sockt_client:     "
 buffsize = 1024
@@ -106,6 +107,13 @@ class SocketQThread(QThread):
                     self.recv_code = -1
                     self.recv_file()
                     self.is_send_heartbeat = True
+
+                # 接收小文件
+                if self.recv_code == 110041:
+                    print("接收大文件{}".format(self.recv_code))
+                    self.recv_code = -1
+                    self.recv_big_file()
+                    self.is_send_heartbeat = True
             # 网络错误处理
             else:
                 print("网络错误")
@@ -177,6 +185,7 @@ class SocketQThread(QThread):
         head_info_len, head_info, file_size = get_file_inform(self.send_file_path, self.send_aim)
         print(head_info)
         if head_info_len > 0:
+            # 小文件发送
             if file_size < 512000:
                 try:
                     self.tcp_client.send(package_data_2_security(data2byte(1100)))
@@ -237,6 +246,7 @@ class SocketQThread(QThread):
                 except Exception as e:
                     print(e.args)
                     print(traceback.format_exc())
+            # 大文件发送
             else:
                 try:
                     self.tcp_client.send(package_data_2_security(data2byte(11004)))
@@ -260,6 +270,8 @@ class SocketQThread(QThread):
         self.send_aim = ''
         self.is_send_heartbeat = True
 
+
+    # 小文件接收
     def recv_file(self):
         print("进入小文件接收函数")
         self.tcp_client.send(package_data_2_security(data2byte(91100)))
@@ -317,6 +329,35 @@ class SocketQThread(QThread):
             tip_message = "91100" + "+0~^D" + "文件接收成功"
             self.my_signal.emit(tip_message)
 
+    def recv_big_file(self):
+        print("进入大文件接收函数")
+        # self.tcp_client.send(package_data_2_security(data2byte(110041)))
+        # 接受客户端介绍信息的长度
+        json_data_len_buffer = self.tcp_client.recv(4)
+        json_data_len_buffer_unpackage = unpackage_data_2_security(json_data_len_buffer)
+        json_data_len = byte2data(json_data_len_buffer_unpackage)
+
+        # 接受介绍信息的内容
+        json_data_buffer = self.tcp_client.recv(json_data_len)
+        json_data_buffer_unpackage = unpackage_data_2_security(json_data_buffer)
+        # 将介绍信息的内容反序列化
+        json_data = json.loads(json_data_buffer_unpackage.decode('utf-8'))
+        print("本次介绍信息的内容为：{}".format(json_data))
+        print("本次file长度为：{}".format(json_data["filesize"]))
+
+        # #   文件接收
+        print("进入接收区")
+        filename = json_data['filename']
+        filesize = json_data['filesize']
+        filepath = json_data['filepath']
+        aim_device = json_data['aim_device']
+        md5 = json_data['md5']
+        use_thread_number = 5
+        print("filename {}, filesize {}, filepath {}, aim_device {}, md5 {}\n进入大文件接收线程".format(filename, filesize, filepath, aim_device, md5))
+        for number in range(use_thread_number):
+            file_recv_thread = FileRecvQThread(number, self.host, self.port)
+            file_recv_thread.start()
+
     # 心跳处理段
     def heartbeat(self):
         print("进入心跳包发送阶段")
@@ -353,10 +394,10 @@ class SocketQThread(QThread):
             print("服务器成功接收发送的大文件，服务器计算md5值相同")
             tip_message = "91100" + "+0~^D" + "文件发送成功"
             self.my_signal.emit(tip_message)
-        elif success_code == 4:
-            status = '接收其它设备信息'
+        elif success_code == 110041:
+            status = '接收大文件。。'
             self.is_send_heartbeat = False
-            self.recv_code = 4
+            self.recv_code = 110041
             return status
         else:
             status = '下线'

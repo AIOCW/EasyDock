@@ -203,10 +203,17 @@ class MyWindow(QWidget):
         self.window2.before_close_signal.connect(self.echo)  # 接收自定义窗口关闭时发送过来的信号，交给 echo 函数显示
         self.window2.show()
 
-if __name__ == "__main__":
-    import sys
+def w():
+    while True:
+        while True:
+            print("一直循环码？")
+            return
 
-    app = QApplication(sys.argv)
-    win = MyWindow()
-    win.show()
-    sys.exit(app.exec_())
+if __name__ == "__main__":
+    # import sys
+    #
+    # app = QApplication(sys.argv)
+    # win = MyWindow()
+    # win.show()
+    # sys.exit(app.exec_())
+    w()

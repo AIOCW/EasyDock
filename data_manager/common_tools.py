@@ -5,7 +5,7 @@ import sqlite3
 
 
 def init_database():
-    database_name = "../db/EasyDock.db"
+    database_name = "db/EasyDock.db"
 
     # 创建app_info数据
     sql_app_info = '''CREATE TABLE IF NOT EXISTS AppInfo(
@@ -37,9 +37,8 @@ def init_database():
     conn.close()
 
 def init_table_data_for_setting():
-    app_setting = AppSetting("192.168.31.1", "192.168.31.1", "8080", "yaque-computer", "C:/Users/yaque/Desktop/PhoneFile/", 1, 1, 1)
+    app_setting = AppSetting("192.168.100.17", "192.168.31.1", "8080", "yaque-computer", "C:/Users/yaque/Desktop/", 1, 1, 1)
     init_setting(app_setting)
 
-if __name__ == "__main__":
-    init_database()
+
 
