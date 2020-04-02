@@ -29,6 +29,7 @@ class MessageTipWindow(QFrame):
         self.read_message_btn.setObjectName('read_message_btn')
 
         self.close_btn = QPushButton(self)
+
         self.close_btn.setText("×")
         self.close_btn.setObjectName("close_btn")
 
